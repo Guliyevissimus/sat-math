@@ -54,8 +54,15 @@ button{cursor:pointer}
 .xh .tools{display:flex;justify-content:flex-end;gap:16px}
 .tool{background:none;border:0;padding:0;display:grid;justify-items:center;gap:2px;font-size:12px;font-weight:600;color:var(--ink);text-decoration:none;min-width:52px}
 .tool svg{width:22px;height:22px}
+.tool:disabled{opacity:.35;cursor:default}
+.rgt{display:flex;justify-content:flex-end;align-items:center;gap:18px;flex-wrap:wrap}
+.go{border:2px solid var(--blue);background:var(--bg);color:var(--blue);border-radius:99px;padding:7px 18px;font-weight:700;font-size:14px;white-space:nowrap}
+.go:hover{background:var(--blue-soft)}
+.go.on{background:var(--ok);border-color:var(--ok);color:#fff;cursor:default}
+.bb.ghost:disabled{color:#a9b4e3;box-shadow:inset 0 0 0 1.5px #c9d0ee;background:var(--bg)}
 .rule{height:3px;background:repeating-linear-gradient(90deg,#1e1e1e 0 14px,transparent 14px 20px,#324dc7 20px 34px,transparent 34px 40px,#e0a100 40px 54px,transparent 54px 60px);opacity:.9}
 @media (max-width:640px){.xh .in{grid-template-columns:1fr auto}.xh .tools{grid-column:1/-1;justify-content:flex-start}.tool{min-width:0}}
+@media (max-width:640px){.rgt{grid-column:1/-1;justify-content:space-between}}
 .stage{max-width:880px;margin:0 auto;padding-block:22px 120px}
 .qbar{display:flex;align-items:center;gap:12px;background:var(--bar);border-bottom:2px dashed var(--line);padding:0 10px 0 0;min-height:38px}
 .qnum{background:var(--black);color:#fff;font-weight:700;min-width:36px;height:38px;display:grid;place-items:center;padding:0 8px;font-size:15px}
@@ -386,10 +393,11 @@ function nextTraining(){
   if(queue&&queue.length){q=QN[queue.shift()];why="redo";mode="rt";}
   else{queue=null;const p=pickTraining();q=p.q;why=p.why;}
   seen.add(q.n);
-  TR={q,why,mode,seen,queue,start:Date.now(),acc:0,running:true,paused:false,sel:null,guess:false,meth:"",done:false,item:null,struck:{},abc:prev?!!prev.abc:false};
+  TR={q,why,mode,seen,queue,start:Date.now(),acc:0,running:ON,paused:false,sel:null,guess:false,meth:"",done:false,item:null,struck:{},abc:prev?!!prev.abc:false};
 }
 function trPause(){if(TR&&TR.running&&!TR.done){TR.acc+=Date.now()-TR.start;TR.running=false;}}
-function trResume(){if(TR&&!TR.running&&!TR.done&&!TR.paused){TR.start=Date.now();TR.running=true;}}
+let ON=false;
+function trResume(){if(ON&&TR&&!TR.running&&!TR.done&&!TR.paused){TR.start=Date.now();TR.running=true;}}
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden)trPause();else if(curView()==="practice")trResume();
   if(SETRUN&&SETRUN.mods&&!SETRUN.result)setVisibility(document.hidden||curView()!=="sets");
@@ -405,9 +413,9 @@ function drawPractice(){
   const today=(DB.days[dayKey(Date.now())]||[]).filter(i=>i.m==="tr"||i.m==="rt").length;
   const num=ss.n+(TR.done?0:1);
   let h=appbar();
-  h+='<div class="xh"><div class="in gut"><div><div class="sec">'+(TR.mode==="rt"?"Redo Missed Questions":"Practice")+'</div><div class="sub"><span>This session: '+ss.n+' answered, '+pct(ss.ok,ss.n)+' correct</span>'+(TR.mode==="rt"?'<span>'+((TR.queue||[]).length)+' left</span>':'')+'</div></div><div class="mid"></div>'+toolsHTML(TR.done?'':'<button type="button" class="tool" id="pauseBtn">'+IC.pause+'Pause</button>')+'</div><div class="rule"></div></div>';
+  h+='<div class="xh"><div class="in gut"><div><div class="sec">'+(TR.mode==="rt"?"Redo Missed Questions":"Practice")+'</div><div class="sub"><span>This session: '+ss.n+' answered, '+pct(ss.ok,ss.n)+' correct</span>'+(TR.mode==="rt"?'<span>'+((TR.queue||[]).length)+' left</span>':'')+'</div></div><div class="mid"></div><div class="rgt">'+(TR.done?'':'<div class="gobox"><button type="button" class="go'+(ON?" on":"")+'" id="startBtn" aria-pressed="'+ON+'">'+(ON?"&#9679; Running":"&#9654; Start")+'</button></div>')+toolsHTML(TR.done?'':'<button type="button" class="tool" id="pauseBtn"'+(ON?'':' disabled')+'>'+IC.pause+'Pause</button>')+'</div></div><div class="rule"></div></div>';
   h+='<div class="'+(TR.paused?"paused":"")+'"><div class="stage gut"><div class="qwrap">';
-  h+='<div class="qbar"><div class="qnum">'+num+'</div><span class="small">'+(TR.done?metaLine(q):"Topic is shown after you answer")+'</span><div class="rt">'+(!TR.done&&q.t==="mc"?'<button type="button" class="abc'+(TR.abc?" on":"")+'" id="abcBtn" title="Answer eliminator">ABC</button>':'')+'</div></div>';
+  h+='<div class="qbar"><div class="qnum">'+num+'</div><span class="small">'+(TR.done?metaLine(q):(ON?"Topic is shown after you answer":"Press Start to begin. The clock and your stats start then."))+'</span><div class="rt">'+(!TR.done&&q.t==="mc"?'<button type="button" class="abc'+(TR.abc?" on":"")+'" id="abcBtn" title="Answer eliminator">ABC</button>':'')+'</div></div>';
   h+='<div class="qbody">'+(q.t==="fr"&&!TR.done?FRDIRS:'')+qHTML(q,{sel:TR.sel,locked:TR.done,showRes:TR.done,ansText:q.t==="fr"?(TR.done?(TR.item.a||""):(TR.sel||"")):"",struck:TR.struck,abc:TR.abc});
   if(!TR.done){
     h+='<div class="opts"><label class="chk"><input type="checkbox" id="guessIn"'+(TR.guess?" checked":"")+'> I guessed</label><label class="meth"><span class="small">Method</span><input id="methIn" maxlength="40" placeholder="Optional: system, vertex, Desmos…" value="'+esc(TR.meth)+'"></label></div>';
@@ -416,21 +424,22 @@ function drawPractice(){
     h+='<div class="fb'+(it.ok?"":" bad")+'"><div class="v">'+(TR.uncounted?'<span class="pill n">Not counted</span> ':'')+(it.ok?"Correct":(it.a?"Incorrect":"Skipped"))+(it.g?' <span class="pill warn">guessed</span>':'')+'</div><div>Correct answer: <b>'+answerDisplay(q)+'</b>'+(q.t==="fr"&&it.a?' · Your answer: <b>'+esc(it.a)+'</b>':'')+'</div>'+((!it.ok||it.g)&&!TR.uncounted?tagsHTML(it):'')+(TR.uncounted?'<div class="meta">This answer was removed from your statistics.</div>':'')+(TR.why==="review"?'<div class="meta">This question came back for review.</div>':'')+'</div>'+explHTML(q,!it.ok);
   }
   h+='</div></div></div></div>';
-  h+='<div class="ft"><div class="in gut"><div class="lf">Today: '+today+(today===1?' question':' questions')+'</div><span class="pillq static">Question '+num+'</span><div class="rg">'+(TR.done?(TR.uncounted?'':'<button type="button" class="bb ghost" id="uncountBtn" title="Remove this answer from all statistics">Don\'t count</button>')+'<button type="button" class="bb" id="nextBtn">Next</button>':'<button type="button" class="bb ghost" id="nocountBtn" title="Move on without recording anything for this question">Don\'t count</button><button type="button" class="bb ghost" id="skipBtn">Skip</button><button type="button" class="bb" id="checkBtn" disabled>Check</button>')+'</div></div></div>';
+  h+='<div class="ft"><div class="in gut"><div class="lf">Today: '+today+(today===1?' question':' questions')+'</div><span class="pillq static">Question '+num+'</span><div class="rg">'+(TR.done?(TR.uncounted?'':'<button type="button" class="bb ghost" id="uncountBtn" title="Remove this answer from all statistics">Don\'t count</button>')+'<button type="button" class="bb" id="nextBtn">Next</button>':'<button type="button" class="bb ghost" id="nocountBtn" title="Move on without recording anything for this question">Don\'t count</button><button type="button" class="bb ghost" id="skipBtn"'+(ON?'':' disabled')+'>Skip</button><button type="button" class="bb" id="checkBtn" disabled>Check</button>')+'</div></div></div>';
   if(TR.paused)h+='<div class="pausebox"><div><b>Paused</b><span class="small">The clock is stopped.</span><button type="button" class="bb" id="resBtn">Resume</button></div></div>';
   app.innerHTML=h;renderMath(app);bindTools(app);
   const wrap=$(".qbody");
   if(!TR.done){
-    bindAnswer(wrap,q,v=>{TR.sel=v;$("#checkBtn").disabled=!v;},L=>{TR.struck[L]=!TR.struck[L];if(TR.struck[L]&&TR.sel===L)TR.sel=null;drawPractice();});
-    if(TR.sel)$("#checkBtn").disabled=false;
+    bindAnswer(wrap,q,v=>{TR.sel=v;$("#checkBtn").disabled=!v||!ON;},L=>{TR.struck[L]=!TR.struck[L];if(TR.struck[L]&&TR.sel===L)TR.sel=null;drawPractice();});
+    if(TR.sel&&ON)$("#checkBtn").disabled=false;
+    $("#startBtn").addEventListener("click",()=>{if(ON)return;ON=true;TR.paused=false;trResume();drawPractice();});
     $("#methIn").addEventListener("input",e=>TR.meth=e.target.value);
     $("#guessIn").addEventListener("change",e=>TR.guess=e.target.checked);
     $("#checkBtn").addEventListener("click",()=>submitPractice(false));
     $("#skipBtn").addEventListener("click",()=>submitPractice(true));
     $("#nocountBtn").addEventListener("click",()=>{if(TR.seen)TR.seen.delete(TR.q.n);nextTraining();drawPractice();window.scrollTo({top:0});});
-    $("#pauseBtn").addEventListener("click",()=>{trPause();TR.paused=true;drawPractice();});
+    $("#pauseBtn").addEventListener("click",()=>{if(!ON)return;trPause();ON=false;TR.paused=true;drawPractice();});
     if($("#abcBtn"))$("#abcBtn").addEventListener("click",()=>{TR.abc=!TR.abc;drawPractice();});
-    if(TR.paused)$("#resBtn").addEventListener("click",()=>{TR.paused=false;trResume();drawPractice();});
+    if(TR.paused)$("#resBtn").addEventListener("click",()=>{ON=true;TR.paused=false;trResume();drawPractice();});
   }else{
     if(TR.item&&(!TR.item.ok||TR.item.g)&&!TR.uncounted)bindTags(app,TR.item);
     if($("#uncountBtn"))$("#uncountBtn").addEventListener("click",()=>{removeItem(TR.item);TR.uncounted=true;drawPractice();});
